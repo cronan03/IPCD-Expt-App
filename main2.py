@@ -6,21 +6,32 @@ image = cv2.imread('C:/Users/ronan/Desktop/IPCD Project/img1.jpg')
 
 num_rows, num_cols = 4, 6
 
-# Calculate cell dimensions
 cell_height = cropped_image.shape[0] // num_rows
 cell_width = cropped_image.shape[1] // num_cols
 
-# List to store average RGB values of each beaker
+circle_radius = 20
+
 average_colors = []
 
-# Iterate through each grid cell
 for i in range(num_rows):
     for j in range(num_cols):
-        # Extract the region of interest (ROI) for the current beaker
-        roi = cropped_image[i * cell_height: (i + 1) * cell_height, j * cell_width: (j + 1) * cell_width]
+        # Calculate the center coordinates of the circular mask
+        center_x = j * cell_width + cell_width // 2
+        center_y = i * cell_height + cell_height // 2
 
-        # Calculate the average RGB value of the liquid region in the current beaker
-        average_color = np.mean(roi, axis=(0, 1)).astype(int)
+        # Create a circular mask with the defined radius
+        mask = np.zeros_like(cropped_image)
+        cv2.circle(mask, (center_x, center_y), circle_radius, (255, 255, 255), -1)
+
+        # Extract the region of interest (ROI) for the circular mask
+        roi = cv2.bitwise_and(cropped_image, mask)
+
+        # Calculate the average RGB value of the circular area in the current beaker
+        total_pixels = np.sum(mask[:, :, 0] > 0)
+        if total_pixels > 0:
+            average_color = np.sum(roi, axis=(0, 1)) // total_pixels
+        else:
+            average_color = np.array([0, 0, 0])  # Default black color if no valid pixels are found
 
         # Add the average RGB value to the list
         average_colors.append(average_color)
@@ -28,13 +39,10 @@ for i in range(num_rows):
         # Print the average RGB value of the liquid in the current beaker
         print(f'Beaker at row {i+1}, column {j+1} has average RGB color: {average_color}')
 
-# Draw rectangles around detected regions after processing all grid cells
-for i in range(num_rows):
-    for j in range(num_cols):
-        top_left = (j * cell_width, i * cell_height)
-        bottom_right = ((j + 1) * cell_width, (i + 1) * cell_height)
-        cv2.rectangle(cropped_image, top_left, bottom_right, (0, 255, 0), 2)
+        # Draw circle around detected region
+        cv2.circle(cropped_image, (center_x, center_y), circle_radius, (0, 255, 0), 2)
 
 cv2.imshow('Detected Beakers', cropped_image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
